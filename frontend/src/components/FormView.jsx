@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle, AlertCircle, Clock, Edit, Settings, BarChart3 }
 import TimeInput from "./Questions/TimeInput";
 import NumberRange from "./Questions/NumberRange";
 import ImageUpload from "./Questions/ImageUpload";
+import AnswerImageUpload from "./Questions/AnswerImageUpload"; // NEW IMPORT
 
 const FormView = () => {
   const { id } = useParams();
@@ -18,6 +19,7 @@ const FormView = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [answers, setAnswers] = useState({});
+  const [answerImages, setAnswerImages] = useState({}); // NEW STATE
   const [error, setError] = useState("");
   const [canEdit, setCanEdit] = useState(false);
 
@@ -26,36 +28,38 @@ const FormView = () => {
   }, [id, user]);
 
   const fetchForm = async () => {
-  try {
-    const response = await api.get(`/forms/${id}`);
-    setForm(response.data);
-    setCanEdit(response.data.can_edit || false);
+    try {
+      const response = await api.get(`/forms/${id}`);
+      setForm(response.data);
+      setCanEdit(response.data.can_edit || false);
 
-    const initialAnswers = {};
-    response.data.questions.forEach((question) => {
-      if (question.type === "checkbox") {
-        initialAnswers[question.id] = [];
+      const initialAnswers = {};
+      const initialImages = {}; // NEW: Initialize images state
+      response.data.questions.forEach((question) => {
+        if (question.type === "checkbox") {
+          initialAnswers[question.id] = [];
+        } else {
+          initialAnswers[question.id] = "";
+        }
+        initialImages[question.id] = ""; // Initialize empty images for all questions
+      });
+      setAnswers(initialAnswers);
+      setAnswerImages(initialImages); // NEW: Set images state
+    } catch (error) {
+      console.error("Error fetching form:", error);
+      
+      // ✅ BETTER ERROR HANDLING: Show specific messages for auth issues
+      if (error.response?.status === 401) {
+        setError("This form requires authentication. Please log in to access it.");
+      } else if (error.response?.status === 404) {
+        setError("Form not found or has been deleted.");
       } else {
-        initialAnswers[question.id] = "";
+        setError("Error loading form. Please try again.");
       }
-    });
-    setAnswers(initialAnswers);
-  } catch (error) {
-    console.error("Error fetching form:", error);
-    
-    // ✅ BETTER ERROR HANDLING: Show specific messages for auth issues
-    if (error.response?.status === 401) {
-      setError("This form requires authentication. Please log in to access it.");
-    } else if (error.response?.status === 404) {
-      setError("Form not found or has been deleted.");
-    } else {
-      setError("Error loading form. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handleEditForm = () => {
     navigate(`/forms/${id}/edit`);
@@ -63,6 +67,11 @@ const FormView = () => {
 
   const handleAnswerChange = (questionId, value) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  // NEW: Image change handler
+  const handleImageChange = (questionId, imageData) => {
+    setAnswerImages((prev) => ({ ...prev, [questionId]: imageData }));
   };
 
   const handleCheckboxChange = (questionId, option, isChecked) => {
@@ -101,6 +110,7 @@ const FormView = () => {
           questionId: question.id,
           answerText: "",
           answerOptions: null,
+          answerImage: answerImages[question.id] || "", // NEW: Include image data
         };
 
         // Handle different question types
@@ -270,95 +280,144 @@ const FormView = () => {
                 </p>
               )}
 
-              {/* Text Input */}
+              {/* Text Input with Image Upload */}
               {question.type === "text" && (
-                <input
-                  type="text"
-                  value={answers[question.id] || ""}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  required={question.is_required}
-                  maxLength={512}
-                />
+                <div>
+                  <input
+                    type="text"
+                    value={answers[question.id] || ""}
+                    onChange={(e) =>
+                      handleAnswerChange(question.id, e.target.value)
+                    }
+                    className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required={question.is_required}
+                    maxLength={512}
+                  />
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
+                </div>
               )}
 
-              {/* Textarea */}
+              {/* Textarea with Image Upload */}
               {question.type === "textarea" && (
-                <textarea
-                  rows={4}
-                  value={answers[question.id] || ""}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  required={question.is_required}
-                  maxLength={4096}
-                />
+                <div>
+                  <textarea
+                    rows={4}
+                    value={answers[question.id] || ""}
+                    onChange={(e) =>
+                      handleAnswerChange(question.id, e.target.value)
+                    }
+                    className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required={question.is_required}
+                    maxLength={4096}
+                  />
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
+                </div>
               )}
 
-              {/* Email Input */}
+              {/* Email Input with Image Upload */}
               {question.type === "email" && (
-                <input
-                  type="email"
-                  value={answers[question.id] || ""}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  required={question.is_required}
-                />
+                <div>
+                  <input
+                    type="email"
+                    value={answers[question.id] || ""}
+                    onChange={(e) =>
+                      handleAnswerChange(question.id, e.target.value)
+                    }
+                    className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required={question.is_required}
+                  />
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
+                </div>
               )}
 
-              {/* Number Input */}
+              {/* Number Input with Image Upload */}
               {question.type === "number" && (
-                <input
-                  type="number"
-                  value={answers[question.id] || ""}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  required={question.is_required}
-                />
+                <div>
+                  <input
+                    type="number"
+                    value={answers[question.id] || ""}
+                    onChange={(e) =>
+                      handleAnswerChange(question.id, e.target.value)
+                    }
+                    className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required={question.is_required}
+                  />
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
+                </div>
               )}
 
-              {/* Number Range */}
+              {/* Number Range with Image Upload */}
               {question.type === "number_range" && (
-                <NumberRange
-                  value={answers[question.id] || ""}
-                  onChange={(value) => handleAnswerChange(question.id, value)}
-                  required={question.is_required}
-                  min={question.options?.[0] || 0}
-                  max={question.options?.[1] || 100}
-                  step={question.options?.[2] || 1}
-                />
+                <div>
+                  <NumberRange
+                    value={answers[question.id] || ""}
+                    onChange={(value) => handleAnswerChange(question.id, value)}
+                    required={question.is_required}
+                    min={question.options?.[0] || 0}
+                    max={question.options?.[1] || 100}
+                    step={question.options?.[2] || 1}
+                  />
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
+                </div>
               )}
 
-              {/* Date Input */}
+              {/* Date Input with Image Upload */}
               {question.type === "date" && (
-                <input
-                  type="date"
-                  value={answers[question.id] || ""}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  required={question.is_required}
-                />
+                <div>
+                  <input
+                    type="date"
+                    value={answers[question.id] || ""}
+                    onChange={(e) =>
+                      handleAnswerChange(question.id, e.target.value)
+                    }
+                    className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required={question.is_required}
+                  />
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
+                </div>
               )}
 
-              {/* Time Input */}
+              {/* Time Input with Image Upload */}
               {question.type === "time" && (
-                <TimeInput
-                  value={answers[question.id] || ""}
-                  onChange={(value) => handleAnswerChange(question.id, value)}
-                  required={question.is_required}
-                />
+                <div>
+                  <TimeInput
+                    value={answers[question.id] || ""}
+                    onChange={(value) => handleAnswerChange(question.id, value)}
+                    required={question.is_required}
+                  />
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
+                </div>
               )}
 
-              {/* Image Upload */}
+              {/* Image Upload Question (special case) */}
               {question.type === "image" && (
                 <ImageUpload
                   value={answers[question.id] || ""}
@@ -367,81 +426,102 @@ const FormView = () => {
                 />
               )}
 
-              {/* Radio Buttons */}
+              {/* Radio Buttons with Image Upload */}
               {question.type === "radio" && (
-                <div className="space-y-2">
-                  {question.options?.map((option, index) => (
-                    <div key={index} className="flex items-center">
-                      <input
-                        type="radio"
-                        id={`${question.id}-${index}`}
-                        name={question.id}
-                        value={option}
-                        checked={answers[question.id] === option}
-                        onChange={(e) =>
-                          handleAnswerChange(question.id, e.target.value)
-                        }
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                        required={question.is_required}
-                      />
-                      <label
-                        htmlFor={`${question.id}-${index}`}
-                        className="ml-2 text-sm text-gray-700"
-                      >
-                        {option}
-                      </label>
-                    </div>
-                  ))}
+                <div>
+                  <div className="space-y-2">
+                    {question.options?.map((option, index) => (
+                      <div key={index} className="flex items-center">
+                        <input
+                          type="radio"
+                          id={`${question.id}-${index}`}
+                          name={question.id}
+                          value={option}
+                          checked={answers[question.id] === option}
+                          onChange={(e) =>
+                            handleAnswerChange(question.id, e.target.value)
+                          }
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                          required={question.is_required}
+                        />
+                        <label
+                          htmlFor={`${question.id}-${index}`}
+                          className="ml-2 text-sm text-gray-700"
+                        >
+                          {option}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
                 </div>
               )}
 
-              {/* Checkboxes */}
+              {/* Checkboxes with Image Upload */}
               {question.type === "checkbox" && (
-                <div className="space-y-2">
-                  {question.options?.map((option, index) => (
-                    <div key={index} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`${question.id}-${index}`}
-                        value={option}
-                        checked={(answers[question.id] || []).includes(option)}
-                        onChange={(e) =>
-                          handleCheckboxChange(
-                            question.id,
-                            option,
-                            e.target.checked
-                          )
-                        }
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label
-                        htmlFor={`${question.id}-${index}`}
-                        className="ml-2 text-sm text-gray-700"
-                      >
-                        {option}
-                      </label>
-                    </div>
-                  ))}
+                <div>
+                  <div className="space-y-2">
+                    {question.options?.map((option, index) => (
+                      <div key={index} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={`${question.id}-${index}`}
+                          value={option}
+                          checked={(answers[question.id] || []).includes(option)}
+                          onChange={(e) =>
+                            handleCheckboxChange(
+                              question.id,
+                              option,
+                              e.target.checked
+                            )
+                          }
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label
+                          htmlFor={`${question.id}-${index}`}
+                          className="ml-2 text-sm text-gray-700"
+                        >
+                          {option}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
                 </div>
               )}
 
-              {/* Dropdown Select */}
+              {/* Dropdown Select with Image Upload */}
               {question.type === "select" && (
-                <select
-                  value={answers[question.id] || ""}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  required={question.is_required}
-                >
-                  <option value="">Select an option</option>
-                  {question.options?.map((option, index) => (
-                    <option key={index} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <select
+                    value={answers[question.id] || ""}
+                    onChange={(e) =>
+                      handleAnswerChange(question.id, e.target.value)
+                    }
+                    className="block w-full border border-gray-300 rounded-xl shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required={question.is_required}
+                  >
+                    <option value="">Select an option</option>
+                    {question.options?.map((option, index) => (
+                      <option key={index} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <AnswerImageUpload
+                    value={answerImages[question.id] || ""}
+                    onChange={(value) => handleImageChange(question.id, value)}
+                    disabled={form.is_locked}
+                  />
+                </div>
               )}
             </div>
           ))}

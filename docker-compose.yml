@@ -1,60 +1,40 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: formapp
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: apsolvent
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - form-network
-
   backend:
     build: ./backend
     ports:
       - "3001:3001"
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: formapp
-      DB_USER: postgres
-      DB_PASSWORD: apsolvent
-      JWT_SECRET: mySuperSecretKey123
-      NODE_ENV: development
-      FRONTEND_URL: http://localhost:3000
-    depends_on:
-      - postgres
-    networks:
-      - form-network
+      - NODE_ENV=${NODE_ENV:-production}
+      - DB_HOST=host.docker.internal  # ← Connect to host PostgreSQL
+      - DB_PORT=5432
+      - DB_NAME=formapp
+      - DB_USER=postgres
+      - DB_PASSWORD=apsolvent
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - FRONTEND_URL=http://localhost:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # ← This allows container to access host
     volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - ./backend/uploads:/app/uploads
+    restart: unless-stopped
+    env_file:
+      - .env
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      args:
+        - VITE_API_URL=${VITE_API_URL}
+        - VITE_APP_NAME=${VITE_APP_NAME}
+        - VITE_APP_VERSION=${VITE_APP_VERSION}
+        - VITE_DEBUG=${VITE_DEBUG}
+        - VITE_ENABLE_ANALYTICS=${VITE_ENABLE_ANALYTICS}
+        - VITE_ENABLE_PWA=${VITE_ENABLE_PWA}
     ports:
-      - "3000:3000"
-    environment:
-      # Environment променљиве за frontend
-      VITE_API_URL: http://localhost:3001/api
-      VITE_APP_NAME: FormApp
-      VITE_DEBUG: true
+      - "3000:80"
     depends_on:
       - backend
-    networks:
-      - form-network
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    restart: unless-stopped
 
-volumes:
-  postgres_data:
-
-networks:
-  form-network:
-    driver: bridge
