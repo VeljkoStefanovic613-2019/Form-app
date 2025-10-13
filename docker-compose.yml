@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: formapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: apsolvent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - form-network
+
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: formapp
+      DB_USER: postgres
+      DB_PASSWORD: apsolvent
+      JWT_SECRET: mySuperSecretKey123
+      NODE_ENV: development
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - postgres
+    networks:
+      - form-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Environment променљиве за frontend
+      VITE_API_URL: http://localhost:3001/api
+      VITE_APP_NAME: FormApp
+      VITE_DEBUG: true
+    depends_on:
+      - backend
+    networks:
+      - form-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+
+networks:
+  form-network:
+    driver: bridge

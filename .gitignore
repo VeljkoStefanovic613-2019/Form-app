@@ -1,0 +1,47 @@
+# -----------------------
+# Root-level .gitignore
+# Works for both frontend and backend
+# -----------------------
+
+# === Node.js ===
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === Build artifacts ===
+dist
+build
+dist-ssr
+
+# === Environment files ===
+.env
+.env.local
+.env.*.local
+
+# === Logs ===
+logs
+*.log
+lerna-debug.log*
+
+# === Editor / OS junk ===
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# === Uploads and temp files (backend) ===
+backend/uploads
+
+# === Coverage, testing ===
+coverage
+*.lcov
+
+# === Misc ===
+*.local
