@@ -1,4 +1,3 @@
-// formController.js
 import { Form } from '../models/Form.js';
 import { Question } from '../models/Question.js';
 import { Response } from '../models/Response.js';

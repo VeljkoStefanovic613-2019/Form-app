@@ -36,3 +36,5 @@ Thumbs.db
 
 # Coverage / testing
 coverage/
+# Uploads
+uploads/

@@ -1,40 +1,49 @@
 version: '3.8'
 
 services:
+  # Add PostgreSQL service
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=formapp
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=apsolvent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
   backend:
     build: ./backend
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
-      - DB_HOST=host.docker.internal  # ← Connect to host PostgreSQL
+      - NODE_ENV=production
+      - DB_HOST=postgres  # ← Use service name
       - DB_PORT=5432
       - DB_NAME=formapp
       - DB_USER=postgres
       - DB_PASSWORD=apsolvent
-      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
-      - FRONTEND_URL=http://localhost:3000
-    extra_hosts:
-      - "host.docker.internal:host-gateway"  # ← This allows container to access host
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+    depends_on:
+      - postgres  # ← Wait for database
     volumes:
-      - ./backend/uploads:/app/uploads
+      - backend_uploads:/app/uploads
     restart: unless-stopped
-    env_file:
-      - .env
 
   frontend:
     build: 
       context: ./frontend
       args:
         - VITE_API_URL=${VITE_API_URL}
-        - VITE_APP_NAME=${VITE_APP_NAME}
-        - VITE_APP_VERSION=${VITE_APP_VERSION}
-        - VITE_DEBUG=${VITE_DEBUG}
-        - VITE_ENABLE_ANALYTICS=${VITE_ENABLE_ANALYTICS}
-        - VITE_ENABLE_PWA=${VITE_ENABLE_PWA}
     ports:
       - "3000:80"
     depends_on:
       - backend
     restart: unless-stopped
 
+volumes:
+  postgres_data:
+  backend_uploads:

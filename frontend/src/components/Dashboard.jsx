@@ -1,4 +1,3 @@
-// Dashboard.jsx - Updated with proper role-based permissions
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Plus, FileText, Users, BarChart3, Calendar, ArrowRight, Sparkles, Share2, Edit, Trash2 } from "lucide-react";

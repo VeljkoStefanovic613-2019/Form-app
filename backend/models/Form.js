@@ -177,7 +177,7 @@ export class Form {
       const totalQuestions = parseInt(questionCountResult.rows[0]?.question_count || 0);
       
       if (totalQuestions === 0) return 0;
-
+  
       const completionResult = await pool.query(
         `WITH response_answers AS (
            SELECT 
@@ -185,7 +185,11 @@ export class Form {
              COUNT(a.id) as answered_count
            FROM responses r
            LEFT JOIN answers a ON r.id = a.response_id 
-             AND (a.answer_text IS NOT NULL OR a.answer_options IS NOT NULL)
+             AND (
+               -- FIX: Only count non-empty answers (same logic as getResponseStats)
+               (a.answer_text IS NOT NULL AND a.answer_text != '' AND a.answer_text != ' ') OR
+               (a.answer_options IS NOT NULL AND a.answer_options != '[]' AND a.answer_options != 'null')
+             )
            WHERE r.form_id = $1
            GROUP BY r.id
          )
@@ -195,12 +199,12 @@ export class Form {
          FROM response_answers`,
         [formId, totalQuestions]
       );
-
+  
       const totalResponses = parseInt(completionResult.rows[0]?.total_responses || 0);
       const avgCompletionRate = parseFloat(completionResult.rows[0]?.avg_completion_rate || 0);
-
+  
       if (totalResponses === 0) return 0;
-
+  
       return Math.min(Math.round(avgCompletionRate), 100);
       
     } catch (error) {

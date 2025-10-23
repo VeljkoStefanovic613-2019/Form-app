@@ -1,0 +1,5 @@
+[build]
+builder = "docker"
+
+[deploy]
+dockerfilePath = "./docker-compose.yml"

@@ -11,52 +11,56 @@ export class Response {
   }
 
   static async createWithAnswers(formId, userId, answers) {
-  const client = await pool.connect();
-  
-  try {
-    await client.query('BEGIN');
-
-    // Create response
-    const responseResult = await client.query(
-      'INSERT INTO responses (form_id, user_id) VALUES ($1, $2) RETURNING *',
-      [formId, userId]
-    );
+    const client = await pool.connect();
     
-    const response = responseResult.rows[0];
+    try {
+      await client.query('BEGIN');
 
-    // Create answers
-    for (const answer of answers) {
-      // ✅ FIX: Properly stringify the answer_options array to JSON
-      const answerOptionsJson = answer.answerOptions ? JSON.stringify(answer.answerOptions) : null;
-      
-      await client.query(
-        `INSERT INTO answers (response_id, question_id, answer_text, answer_options) 
-         VALUES ($1, $2, $3, $4)`,
-        [response.id, answer.questionId, answer.answerText, answerOptionsJson]
+      // Create response
+      const responseResult = await client.query(
+        'INSERT INTO responses (form_id, user_id) VALUES ($1, $2) RETURNING *',
+        [formId, userId]
       );
-    }
+      
+      const response = responseResult.rows[0];
 
-    await client.query('COMMIT');
-    return response;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
+      // Create answers
+      for (const answer of answers) {
+        // ✅ FIX: Properly stringify the answer_options array to JSON
+        const answerOptionsJson = answer.answerOptions ? JSON.stringify(answer.answerOptions) : null;
+        
+        await client.query(
+          `INSERT INTO answers (response_id, question_id, answer_text, answer_options) 
+           VALUES ($1, $2, $3, $4)`,
+          [response.id, answer.questionId, answer.answerText, answerOptionsJson]
+        );
+      }
+
+      await client.query('COMMIT');
+      return response;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
-}
 
   static async findByFormId(formId) {
     const result = await pool.query(
       `SELECT r.*, u.name as user_name,
-              json_agg(
-                json_build_object(
-                  'question_id', a.question_id,
-                  'question_text', q.text,
-                  'question_type', q.type,
-                  'answer_text', a.answer_text,
-                  'answer_options', a.answer_options
-                )
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'question_id', a.question_id,
+                    'question_text', q.text,
+                    'question_type', q.type,
+                    'answer_text', a.answer_text,
+                    'answer_options', a.answer_options
+                  ) 
+                  ORDER BY q.order_index
+                ) FILTER (WHERE a.id IS NOT NULL),
+                '[]'::json
               ) as answers
        FROM responses r
        LEFT JOIN users u ON r.user_id = u.id
